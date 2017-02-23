@@ -1,11 +1,12 @@
 package com.zoka.sunshineapp;
 
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.text.format.Time;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -13,9 +14,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.ListView;
 
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
@@ -30,16 +28,14 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 
 /**
  * Created by Mohamed AbdelraZek on 2/20/2017.
  */
 
 public class ForecastFragment extends Fragment {
-    ForecastFragment forecastFragment;
-    private ArrayAdapter<String> mForecastAdapter;
-    private ListView mForecastListView;
+    ForecastAdapter mForecastAdapter;
+    RecyclerView mRecyclerView;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -52,25 +48,10 @@ public class ForecastFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-        mForecastListView = (ListView) rootView.findViewById(R.id.list_view);
-        mForecastAdapter =
-                new ArrayAdapter<String>(
-                        getActivity(), // The current context (this activity)
-                        R.layout.list_item_forecast, // The name of the layout ID.
-                        R.id.list_item_forecast_textview, // The ID of the textview to populate.
-                        new ArrayList<String>());
-        mForecastListView.setAdapter(mForecastAdapter);
-        mForecastListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-
-                Intent intent = new Intent(getContext(), DetailsActivity.class);
-                intent.putExtra(Intent.EXTRA_TEXT, mForecastAdapter.getItem(position));
-                startActivity(intent);
-
-            }
-        });
-
+        mForecastAdapter = new ForecastAdapter();
+        mRecyclerView= (RecyclerView) rootView.findViewById(R.id.recycler_view_id);
+        mRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
+        mRecyclerView.setAdapter(mForecastAdapter);
         return rootView;
     }
 
@@ -101,10 +82,8 @@ public class ForecastFragment extends Fragment {
                     public void onResponse(JSONObject response) {
                         try {
                             String RES[] = getWeatherDataFromJson(response);
-                            mForecastAdapter.clear();
-                            for (int i = 0; i < RES.length; i++) {
-                                mForecastAdapter.add(RES[i]);
-                            }
+                            mForecastAdapter.setWeatherData(RES);
+
                         } catch (JSONException e) {
                             e.printStackTrace();
                         }
@@ -121,6 +100,7 @@ public class ForecastFragment extends Fragment {
                 });
 
         Volley.newRequestQueue(getActivity()).add(jsObjRequest);
+
 
     }
 
@@ -240,7 +220,6 @@ public class ForecastFragment extends Fragment {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         if (id == R.id.action_refresh) {
-            mForecastAdapter.clear();
             getWeatherData();
             return true;
         }

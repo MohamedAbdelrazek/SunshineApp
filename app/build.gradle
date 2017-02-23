@@ -10,6 +10,7 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "API_KEY", API_KEY)
     }
     buildTypes {
         release {
@@ -26,6 +27,6 @@ dependencies {
     })
     compile 'com.android.support:appcompat-v7:25.1.1'
     testCompile 'junit:junit:4.12'
-    compile 'com.squareup.okhttp3:okhttp:3.6.0'
     compile 'com.android.volley:volley:1.0.0'
+    compile 'com.android.support:recyclerview-v7:25.1.1'
 }
