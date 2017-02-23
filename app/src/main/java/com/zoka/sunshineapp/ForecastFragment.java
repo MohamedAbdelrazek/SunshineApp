@@ -33,10 +33,13 @@ import static com.zoka.sunshineapp.utils.NetworkUtils.buildQueryParam;
  * Created by Mohamed AbdelraZek on 2/20/2017.
  */
 
-public class ForecastFragment extends Fragment implements LoaderManager.LoaderCallbacks<String[]> {
+public class ForecastFragment extends Fragment implements LoaderManager.LoaderCallbacks<String[]>, SharedPreferences.OnSharedPreferenceChangeListener {
     private ForecastAdapter mForecastAdapter;
     private RecyclerView mRecyclerView;
     private static final int LOADER_ID = 1;
+    private static final String LOACATION_QUERY_STRING = "location_Q";
+
+    private SharedPreferences sharedPreferences;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -54,8 +57,21 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
         mRecyclerView = (RecyclerView) rootView.findViewById(R.id.recycler_view_id);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
         mRecyclerView.setAdapter(mForecastAdapter);
-
+        setupSharedPreference();
         return rootView;
+    }
+
+    private void setupSharedPreference() {
+        sharedPreferences = android.support.v7.preference.
+                PreferenceManager.getDefaultSharedPreferences(getActivity());
+        sharedPreferences.registerOnSharedPreferenceChangeListener(this);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(this);
+
     }
 
     private String getLocationString() {
@@ -75,7 +91,7 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_setting) {
-          startActivity(new Intent(getContext(),SettingActivity.class));
+            startActivity(new Intent(getContext(), SettingsActivity.class));
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -133,5 +149,11 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
     @Override
     public void onLoaderReset(Loader<String[]> loader) {
 
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        //Just start the loader and the new value for locaion will be updated
+        getLoaderManager().restartLoader(LOADER_ID, null, this);
     }
 }
