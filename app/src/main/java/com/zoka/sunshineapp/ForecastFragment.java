@@ -1,5 +1,6 @@
 package com.zoka.sunshineapp;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -67,16 +68,14 @@ public class ForecastFragment extends Fragment implements LoaderManager.LoaderCa
 
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-        inflater.inflate(R.menu.forecastfragment, menu);
+        inflater.inflate(R.menu.main, menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-        if (id == R.id.action_refresh) {
+        if (id == R.id.action_setting) {
+          startActivity(new Intent(getContext(),SettingActivity.class));
             return true;
         }
         return super.onOptionsItemSelected(item);
