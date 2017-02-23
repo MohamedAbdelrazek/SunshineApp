@@ -4,16 +4,21 @@ import android.net.Uri;
 
 import com.zoka.sunshineapp.BuildConfig;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 /**
  * Created by Mohamed AbdelraZek on 2/19/2017.
  */
 
 public class NetworkUtils {
-    //Test comment
 
+    private static String[] data;
     //http://api.openweathermap.org/data/2.5/forecast/daily?q=Egypt&mode=json&units=metric&cnt=7&appid=898f65633246b1b5acdd60cb7250da84
     final static String format = "json";
     static final String units = "metric";
@@ -38,5 +43,13 @@ public class NetworkUtils {
         return url;
     }
 
+    public static String JsonResponse(URL url) throws IOException {
+        OkHttpClient client = new OkHttpClient();
+        Request request = new Request.Builder()
+                .url(url)
+                .build();
 
+        Response response = client.newCall(request).execute();
+        return response.body().string();
+    }
 }

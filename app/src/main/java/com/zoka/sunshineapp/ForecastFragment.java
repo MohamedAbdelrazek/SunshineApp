@@ -5,9 +5,12 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.AsyncTaskLoader;
+import android.support.v4.content.Loader;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.text.format.Time;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -15,33 +18,31 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
-import com.zoka.sunshineapp.utils.NetworkUtils;
+import com.zoka.sunshineapp.utils.JsonUtils;
 
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.text.SimpleDateFormat;
+
+import static com.zoka.sunshineapp.utils.NetworkUtils.JsonResponse;
+import static com.zoka.sunshineapp.utils.NetworkUtils.buildQueryParam;
 
 /**
  * Created by Mohamed AbdelraZek on 2/20/2017.
  */
 
-public class ForecastFragment extends Fragment {
-    ForecastAdapter mForecastAdapter;
-    RecyclerView mRecyclerView;
+public class ForecastFragment extends Fragment implements LoaderManager.LoaderCallbacks<String[]> {
+    private ForecastAdapter mForecastAdapter;
+    private RecyclerView mRecyclerView;
+    private static final int LOADER_ID = 1;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Add this line in order for this fragment to handle menu events.
         setHasOptionsMenu(true);
+        getLoaderManager().initLoader(LOADER_ID, null, this);
+
     }
 
     @Nullable
@@ -49,163 +50,19 @@ public class ForecastFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
         mForecastAdapter = new ForecastAdapter();
-        mRecyclerView= (RecyclerView) rootView.findViewById(R.id.recycler_view_id);
+        mRecyclerView = (RecyclerView) rootView.findViewById(R.id.recycler_view_id);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
         mRecyclerView.setAdapter(mForecastAdapter);
+
         return rootView;
     }
 
-    private void getWeatherData() {
+    private String getLocationString() {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
         String location = prefs.getString(getString(R.string.location_key),
                 getString(R.string.location_default_value));
+        return location;
 
-        try {
-            URL url = NetworkUtils.buildQueryParam(location);
-            geJsonResponse(url);
-
-        } catch (MalformedURLException e) {
-
-        } catch (IOException e) {
-
-        }
-
-
-    }
-
-    private void geJsonResponse(URL queryURl) throws IOException {
-
-        JsonObjectRequest jsObjRequest = new JsonObjectRequest
-                (com.android.volley.Request.Method.GET, queryURl.toString(), null, new com.android.volley.Response.Listener<JSONObject>() {
-
-                    @Override
-                    public void onResponse(JSONObject response) {
-                        try {
-                            String RES[] = getWeatherDataFromJson(response);
-                            mForecastAdapter.setWeatherData(RES);
-
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-
-                    }
-                }, new com.android.volley.Response.ErrorListener() {
-
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        // TODO Auto-generated method stub
-
-
-                    }
-                });
-
-        Volley.newRequestQueue(getActivity()).add(jsObjRequest);
-
-
-    }
-
-    private String[] getWeatherDataFromJson(JSONObject forecastJson)
-            throws JSONException {
-
-        // These are the names of the JSON objects that need to be extracted.
-        final String OWM_LIST = "list";
-        final String OWM_WEATHER = "weather";
-        final String OWM_TEMPERATURE = "temp";
-        final String OWM_MAX = "max";
-        final String OWM_MIN = "min";
-        final String OWM_DESCRIPTION = "main";
-
-        JSONArray weatherArray = forecastJson.getJSONArray(OWM_LIST);
-
-        // OWM returns daily forecasts based upon the local time of the city that is being
-        // asked for, which means that we need to know the GMT offset to translate this data
-        // properly.
-
-        // Since this data is also sent in-order and the first day is always the
-        // current day, we're going to take advantage of that to get a nice
-        // normalized UTC date for all of our weather.
-
-        Time dayTime = new Time();
-        dayTime.setToNow();
-
-        // we start at the day returned by local time. Otherwise this is a mess.
-        int julianStartDay = Time.getJulianDay(System.currentTimeMillis(), dayTime.gmtoff);
-
-        // now we work exclusively in UTC
-        dayTime = new Time();
-
-        String[] resultStrs = new String[weatherArray.length()];
-
-        // Data is fetched in Celsius by default.
-        // If user prefers to see in Fahrenheit, convert the values here.
-        // We do this rather than fetching in Fahrenheit so that the user can
-        // change this option without us having to re-fetch the data once
-        // we start storing the values in a database.
-        //SharedPreferences sharedPrefs =
-        //      PreferenceManager.getDefaultSharedPreferences(getActivity());
-        //    String unitType = sharedPrefs.getString(
-        //          getString(R.string.pref_units_key),
-        //        getString(R.string.pref_units_metric));
-
-        for (int i = 0; i < weatherArray.length(); i++) {
-            // For now, using the format "Day, description, hi/low"
-            String day;
-            String description;
-            String highAndLow;
-
-            // Get the JSON object representing the day
-            JSONObject dayForecast = weatherArray.getJSONObject(i);
-
-            // The date/time is returned as a long.  We need to convert that
-            // into something human-readable, since most people won't read "1400356800" as
-            // "this saturday".
-            long dateTime;
-            // Cheating to convert this to UTC time, which is what we want anyhow
-            dateTime = dayTime.setJulianDay(julianStartDay + i);
-            day = getReadableDateString(dateTime);
-
-            // description is in a child array called "weather", which is 1 element long.
-            JSONObject weatherObject = dayForecast.getJSONArray(OWM_WEATHER).getJSONObject(0);
-            description = weatherObject.getString(OWM_DESCRIPTION);
-
-            // Temperatures are in a child object called "temp".  Try not to name variables
-            // "temp" when working with temperature.  It confuses everybody.
-            JSONObject temperatureObject = dayForecast.getJSONObject(OWM_TEMPERATURE);
-            double high = temperatureObject.getDouble(OWM_MAX);
-            double low = temperatureObject.getDouble(OWM_MIN);
-
-            highAndLow = formatHighLows(high, low, "unitType");
-            resultStrs[i] = day + " - " + description + " - " + highAndLow;
-        }
-        return resultStrs;
-
-    }
-
-    private String getReadableDateString(long time) {
-        // Because the API returns a unix timestamp (measured in seconds),
-        // it must be converted to milliseconds in order to be converted to valid date.
-        SimpleDateFormat shortenedDateFormat = new SimpleDateFormat("EEE MMM dd");
-        return shortenedDateFormat.format(time);
-    }
-
-    /**
-     * Prepare the weather high/lows for presentation.
-     */
-    private String formatHighLows(double high, double low, String unitType) {
-
-        //   if (unitType.equals(getString(R.string.pref_units_imperial))) {
-        //     high = (high * 1.8) + 32;
-        //   low = (low * 1.8) + 32;
-        //} else if (!unitType.equals(getString(R.string.pref_units_metric))) {
-        //    Log.d(LOG_TAG, "Unit type not found: " + unitType);
-        //}
-
-        // For presentation, assume the user doesn't care about tenths of a degree.
-        long roundedHigh = Math.round(high);
-        long roundedLow = Math.round(low);
-
-        String highLowStr = roundedHigh + "/" + roundedLow;
-        return highLowStr;
     }
 
     @Override
@@ -220,9 +77,62 @@ public class ForecastFragment extends Fragment {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         if (id == R.id.action_refresh) {
-            getWeatherData();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+
+    @Override
+    public Loader<String[]> onCreateLoader(int id, final Bundle args) {
+
+
+        return new AsyncTaskLoader<String[]>(getActivity()) {
+            String[] forecastData;
+
+            @Override
+            protected void onStartLoading() {
+
+                Log.i("ZOKA", "start Loading !");
+                if (forecastData != null) {
+                    deliverResult(forecastData);
+                } else {
+                    forceLoad();
+                }
+            }
+
+            @Override
+            public void deliverResult(String[] data) {
+                forecastData = data;
+                super.deliverResult(data);
+            }
+
+            @Override
+            public String[] loadInBackground() {
+                try {
+                    String location = getLocationString();
+                    URL url = buildQueryParam(location);
+                    String jsonResponse = JsonResponse(url);
+                    String[] data = JsonUtils.getWeatherDataFromJson(jsonResponse);
+                    return data;
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                return new String[0];
+            }
+        };
+    }
+
+    @Override
+    public void onLoadFinished(Loader<String[]> loader, String[] data) {
+
+        mForecastAdapter.setWeatherData(data);
+    }
+
+    @Override
+    public void onLoaderReset(Loader<String[]> loader) {
+
     }
 }
